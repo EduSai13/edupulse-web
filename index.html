@@ -131,13 +131,13 @@ function Session(){
   const c=classes[sel.cls];
   return `<h1>Session</h1>${warn()}<div class="row"><div class="card"><h2>Quiz and class</h2><p class="mu">Quiz</p><select aria-label="Quiz" onchange="sel.quiz=+this.value">${quizzes.map((q,i)=>`<option value="${i}" ${i==sel.quiz?'selected':''}>${esc(q.t)} · ${q.q.length} Q</option>`).join('')||'<option>Add a quiz first</option>'}</select>
 <p class="mu">Class</p><select aria-label="Class" onchange="sel.cls=this.value===''?'':+this.value;render()"><option value="">No class</option>${classes.map((x,i)=>`<option value="${i}" ${i===sel.cls?'selected':''}>${esc(x.name)} · ${x.st.length} students</option>`).join('')}</select></div>
-<div class="card"><h2>Clickers</h2><datalist id="ros">${(c?c.st:[]).map(x=>`<option value="${esc(x)}">`).join('')}</datalist>${P.map(p=>`<div class="row" style="align-items:center;margin-top:10px"><input list="ros" aria-label="Player name" value="${esc(p.name)}" onfocus="this.dataset.v=this.value;this.value=''" oninput="P[${p.i}].name=this.value" onblur="if(!this.value)this.value=this.dataset.v;P[${p.i}].name=this.value"><button class="btn l" onclick="connect(${p.i})">${p.port?'Reconnect':'Connect'}</button><span class="chip ${st(p)=='Linked'?'ok':'bad'}" id="c${p.i}">${st(p)}</span></div>`).join('')}
+<div class="card"><h2>Clickers</h2><datalist id="ros">${(c?c.st:[]).map(x=>`<option value="${esc(x)}">`).join('')}</datalist>${P.map(p=>`<div class="row" style="align-items:center;margin-top:10px"><input list="ros" aria-label="Player name" value="${esc(p.name)}" onfocus="this.dataset.v=this.value;this.value=''" oninput="P[${p.i}].name=this.value" onblur="if(!this.value)this.value=this.dataset.v;P[${p.i}].name=this.value"><button class="btn l sm" onclick="connect(${p.i})">${p.port?'Reconnect':'Connect'}</button>${p.port?`<button class="btn p sm" onclick="disconnect(${p.i})">Disconnect</button>`:''}<span class="chip ${st(p)=='Linked'?'ok':'bad'}" id="c${p.i}">${st(p)}</span></div>`).join('')}
 <p class="mu">${c?'Tap a name field to pick each player from the class list, or type one.':'Type a name, or choose a class to pick from its list.'} Pair each HC-05 in Bluetooth settings first. No clicker? Play from the keyboard: A–D for Player 1, 1–4 for Player 2.</p></div></div>
 <button class="btn" style="height:64px;font-size:22px" ${quizzes.length?'':'disabled'} onclick="start()">${ic('PlayM')}Start session</button>`}
 function pc(p){
   const s=G.state,off=p.port&&st(p)!='Linked';
   const c=s=='Z'?(p.rank=='1'?'1st place':'2nd place'):s=='L'?(p.result=='C'?'Correct':p.result=='X'?'Wrong':'No answer'):p.ans!='-'?'Locked in':'Waiting…';
-  return `<div class="card"><div class="big" style="font-size:22px">${esc(p.name)}</div><div style="margin:8px 0"><span class="chip ${p.ans!='-'||p.result=='C'||(s=='Z'&&p.rank=='1')?'ok':'bad'}">${c}</span> ${off&&s!='Z'?'<span class="chip bad">Offline</span>':''}</div><div class="mu">${s=='L'&&p.ans!='-'?'Answered '+p.ans+' · ':''}Score</div><div class="big" style="font-size:40px">${p.score}</div></div>`}
+  return `<div class="card"><div class="big" style="font-size:22px">${esc(p.name)}</div><div style="margin:8px 0"><span class="chip ${p.ans!='-'||p.result=='C'||(s=='Z'&&p.rank=='1')?'ok':'bad'}">${c}</span> ${off&&s!='Z'?'<span class="chip bad">Offline</span>':''}${p.port&&p.ans!='-'&&p.ms<300&&s!='Z'?'<span class="chip bad">Instant press?</span>':''}</div><div class="mu">${s=='L'&&p.ans!='-'?'Answered '+p.ans+' · ':''}Score</div><div class="big" style="font-size:40px">${p.score}</div></div>`}
 
 function Live(){
   const k=G.q.q[G.qi],L=G.state=='L';
@@ -208,6 +208,12 @@ function delQ(i){quizzes.splice(i,1);sel.quiz=0;LS.s('ep.q',quizzes);render()}
 
 /* ---------- serial (HC-05 over Bluetooth RFCOMM) ---------- */
 async function connect(i){const p=P[i];p.busy=1;try{if(!p.port)p.port=await navigator.serial.requestPort();await openP(p)}catch(e){alert('Could not connect: '+e.message)}p.busy=0;render()}
+async function disconnect(i){
+  const p=P[i];p.busy=1;p.up=false;
+  try{p.r&&await p.r.cancel()}catch(e){}try{p.w&&p.w.releaseLock()}catch(e){}
+  await new Promise(r=>setTimeout(r,150));
+  try{await p.port.close()}catch(e){}
+  p.w=null;p.r=null;p.seen=0;p.port=null;p.busy=0;render()}
 async function openP(p){
   try{p.r&&await p.r.cancel()}catch(e){}try{p.w&&p.w.releaseLock()}catch(e){}try{await p.port.close()}catch(e){}
   try{await p.port.open({baudRate:9600})}catch(e){if(e.name!=='InvalidStateError')throw e}
