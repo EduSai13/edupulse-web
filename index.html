@@ -114,15 +114,15 @@ function render(){
   const b=(k,i)=>`<button class="${k===tab?'on':''}" onclick="go('${k}')" aria-label="${k}"><img src="${IMG[i]}" width="30" height="30" alt=""><span class="lb">${k}</span></button>`;
   R.innerHTML=`<button class="tg" onclick="tog()" aria-label="Collapse or expand menu"><img src="${IMG.Side}" width="30" height="30" alt=""></button><img src="${IMG.Logo}" width="${nav?40:60}" height="${nav?40:60}" alt="EduPulse" style="margin-bottom:8px">`+TABS.map(k=>b(k,k+(k===tab?'On':'Off'))).join('')+'<div style="flex:1"></div>'+b('Guide','Guide');
   $('#m').className=live?'live':(tab=='Classes'||tab=='Analysis'||(tab=='Quizzes'&&ed))?'fit':'';
-  $('#m').innerHTML=({Home,Classes,Quizzes,Session,Live,Analysis,Guide})[tab]();
+  $('#m').innerHTML=({Home,Classes,Quizzes,Session,Live,Analysis,Guide})[tab]();if(tab=='Home')chkOff();
 }
 /* ---------- screens ---------- */
 function Home(){
   const avg=sessions.length?Math.round(100*sessions.reduce((a,s)=>a+s.pl.reduce((x,p)=>x+p.sc/s.max,0)/s.pl.length,0)/sessions.length)+'%':'—';
-  return `<div class="hero"><img src="${IMG.Splash}" width="96" height="96" alt="EduPulse"><button class="mas" onclick="poke()" aria-label="EduPulse mascot. Tap for a new line.">${MASCOT}</button><div class="bub" id="tag" aria-live="polite">${TAGS[tagI]}</div></div>${warn()}${resBanner()}
+  return `<div class="hero"><img src="${IMG.Splash}" width="96" height="96" alt="EduPulse"><button class="mas" onclick="poke()" aria-label="EduPulse mascot. Tap for a new line.">${MASCOT}</button><div class="bub" id="tag" aria-live="polite">${tagNow()}</div></div>${warn()}${resBanner()}${bkBanner()}${ob()}
 <div class="row"><div class="card stat"><div class="mu">Quizzes</div><div class="big">${quizzes.length}</div></div><div class="card stat"><div class="mu">Sessions</div><div class="big">${sessions.length}</div></div><div class="card stat"><div class="mu">Average score</div><div class="big">${avg}</div></div></div>
 <div class="row"><button class="btn" onclick="go('Session')">${ic('PlayM')}New session</button><button class="btn l" onclick="go('Quizzes')">${ic('Upload')}Import quiz</button></div>
-<div class="card"><h2>Your data</h2><p class="mu">Everything is saved in this browser only. Back up before clearing browser data or changing phones.</p><div class="row"><button class="btn l" onclick="backup()">${ic('Share')}Back up</button><label class="btn p">${ic('Upload')}Restore<input type="file" accept=".json,application/json" hidden onchange="restore(this.files[0])"></label></div></div><div class="card"><h2>Recent sessions</h2><table>${sessions.slice(-5).reverse().map(s=>`<tr><td>${esc(s.title)}</td><td class="mu">${s.date}</td><td>${s.pl.map(p=>esc(p.n)+' '+p.sc).join(', ')}</td></tr>`).join('')||'<tr><td class="mu">No sessions yet. Start one to see it here.</td></tr>'}</table></div>`}
+<div class="card"><h2>Your data</h2><p class="mu">Everything is saved in this browser only. Back up before clearing browser data or changing phones.</p><div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px"><span class="chip" id="offc">Checking offline…</span>${bkChip()}</div><div class="row"><button class="btn l" onclick="backup()">${ic('Share')}Back up</button><label class="btn p">${ic('Upload')}Restore<input type="file" accept=".json,application/json" hidden onchange="restore(this.files[0])"></label></div></div><div class="card"><h2>Recent sessions</h2><table>${sessions.slice(-5).reverse().map(s=>`<tr><td>${esc(s.title)}</td><td class="mu">${s.date}</td><td>${s.pl.map(p=>esc(p.n)+' '+p.sc).join(', ')}</td></tr>`).join('')||'<tr><td class="mu">No sessions yet. Start one to see it here.</td></tr>'}</table></div>`}
 
 function Quizzes(){
   if(ed)return Editor();
@@ -342,7 +342,7 @@ ${gs(6,'Review and export','Analysis pools sessions of the same quiz and shows t
 <div class="card"><h2>About EduPulse</h2><p class="mu">EduPulse is a Bluetooth-based classroom clicker system developed as an undergraduate thesis project. Arduino Nano clickers with HC-05 modules connect to this offline app for formative assessment and group quiz bowls.</p><p class="mu">Author: Jessairra Macinas (Sai), BSEd, Major in Science, Bicol University Tabaco Campus, Magna Cum Laude.</p></div>`}
 
 /* ---------- backup, resume, delete ---------- */
-function backup(){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify({v:1,quizzes,classes,sessions})],{type:'application/json'}));a.download='EduPulse_backup_'+new Date().toISOString().slice(0,10)+'.json';a.click()}
+function backup(){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify({v:1,quizzes,classes,sessions})],{type:'application/json'}));a.download='EduPulse_backup_'+new Date().toISOString().slice(0,10)+'.json';a.click();LS.s('ep.bk',Date.now());render()}
 async function restore(f){
   if(!f)return;
   try{const d=JSON.parse(await f.text());if(!Array.isArray(d.quizzes)||!Array.isArray(d.classes)||!Array.isArray(d.sessions))throw 0;
@@ -365,7 +365,26 @@ if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWor
 const MASCOT=`<svg viewBox="0 0 120 140" width="84" height="98" aria-hidden="true"><circle class="rn" cx="60" cy="64" r="44"/><circle class="rn r2" cx="60" cy="64" r="44"/><g class="body"><rect class="l1" x="42" y="100" width="9" height="30" rx="4.5" fill="#B3B3B3"/><path class="l2" d="M72 100v14l8 5v11" stroke="#B3B3B3" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M30 92V52a30 30 0 0 1 60 0v40z" fill="#3F518F"/><rect x="30" y="86" width="60" height="14" fill="#74B9AF"/><path d="M39 78V56a21 21 0 0 1 5-14" stroke="#fff" stroke-width="4" stroke-linecap="round" fill="none"/><g class="eye"><ellipse cx="52" cy="58" rx="6" ry="7" fill="#F8F2DF"/><circle cx="53" cy="59" r="3" fill="#27336B"/></g><g class="eye"><ellipse cx="74" cy="58" rx="6" ry="7" fill="#F8F2DF"/><circle cx="75" cy="59" r="3" fill="#27336B"/></g><path d="M55 71q8 8 16 0" stroke="#F8F2DF" stroke-width="3.5" stroke-linecap="round" fill="none"/><circle cx="45" cy="69" r="4" fill="#E6C3F2" opacity=".85"/><circle cx="81" cy="69" r="4" fill="#E6C3F2" opacity=".85"/></g></svg>`;
 const TAGS=['Press. Pulse. Repeat.','Fastest finger first!','Your move, class.','Lights on. Thumbs ready.','Quiet room. Loud answers.','Again? Okay, again.'];
 let tagI=0;
-function poke(){tagI=(tagI+1)%TAGS.length;const t=$('#tag'),m=$('.mas');if(t)t.textContent=TAGS[tagI];if(m){m.classList.remove('jump');void m.offsetWidth;m.classList.add('jump');setTimeout(()=>m.classList.remove('jump'),650)}}
+function poke(){tagI=(tagI+1)%TAGS.length;const t=$('#tag'),m=$('.mas');if(t)t.textContent=tagNow();if(m){m.classList.remove('jump');void m.offsetWidth;m.classList.add('jump');setTimeout(()=>m.classList.remove('jump'),650)}}
+
+/* ---------- first-run help, offline check, backup nudge ---------- */
+async function chkOff(){
+  let ok=false;
+  try{ok='serviceWorker' in navigator&&!!(await navigator.serviceWorker.getRegistration())&&!!(await caches.match('./index.html'))}catch(e){}
+  const e=$('#offc');
+  if(e){e.textContent=ok?'Works offline':'Not offline-ready yet';e.className='chip '+(ok?'ok':'bad');e.title=ok?'':'Open the hosted app once with internet. It needs HTTPS and a sw.js that isn’t empty.'}
+  if(!ok&&!chkOff.r){chkOff.r=1;setTimeout(chkOff,3500)}}
+const bkChip=()=>{const b=LS.g('ep.bk',0);return `<span class="chip ${b?'ok':'bad'}">${b?'Last backup '+new Date(b).toLocaleDateString():'No backup yet'}</span>`};
+const bkBanner=()=>{const b=LS.g('ep.bk',0);return sessions.length&&(!b||Date.now()-b>6048e5)?`<div class="card" style="background:var(--li)"><div class="row" style="align-items:center"><div><b>Back up your sessions</b><div class="mu">${b?'Last backup was '+Math.floor((Date.now()-b)/864e5)+' days ago.':'You haven’t backed up yet.'} Data lives only on this device.</div></div><button class="btn" onclick="backup()">${ic('Share')}Back up now</button></div></div>`:''};
+function ob(){
+  const d=[classes.length>0,quizzes.length>0,P.some(p=>p.port),sessions.length>0],L=[['Add a class','Classes'],['Add a quiz','Quizzes'],['Pair a clicker','Session'],['Run your first session','Session']];
+  if(d.every(Boolean))return '';
+  return `<div class="card"><h2>Get started</h2><div class="list" style="overflow:visible;margin-top:10px">${L.map((x,i)=>`<button class="li ${d[i]?'':'on'}" onclick="go('${x[1]}')"><b>${d[i]?'✓ ':''}${x[0]}</b></button>`).join('')}</div></div>`}
+function ctxTag(){
+  if(!quizzes.length)return 'Add a quiz and let’s go!';
+  const l=sessions[sessions.length-1];
+  return l?'Last round: '+l.title+', '+Math.round(100*avg(l.pl.map(p=>p.sc/l.max)))+'%':TAGS[0]}
+const tagNow=()=>tagI==0?ctxTag():TAGS[tagI];
 
 render();
 </script></body></html>
